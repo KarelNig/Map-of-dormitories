@@ -1,0 +1,26 @@
+{
+    "Алматы": [
+        {
+            "name": "ТОО \"Студенческий дом\"",
+            "totalSpots": 150,
+            "freeSpots": 20,
+            "address": "г. Алматы, ул. Толе би 59",
+            "price": 25000,
+            "phone": "8-707-333-40-50",
+            "photo": "https://example.com/photo1.jpg",
+            "description": "Описание общежития"
+        }
+    ],
+    "Астана": [
+        {
+            "name": "ТОО \"TemirProminvest\"",
+            "totalSpots": 100,
+            "freeSpots": 5,
+            "address": "г. Астана, ул. Кенесары 15",
+            "price": 30000,
+            "phone": "8-707-331-80-10",
+            "photo": "https://example.com/photo2.jpg",
+            "description": "Описание общежития"
+        }
+    ]
+}
