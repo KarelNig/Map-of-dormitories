@@ -72,3 +72,42 @@ function getRussianRegionName(feature) {
     
     return russianName;
 }
+
+// map-config.js
+
+// Центр карты (примерно центр Казахстана)
+const kazakhstanCenter = [48.0196, 66.9237];
+// Начальный уровень зума
+const initialZoom = 5;
+// Максимальный зум
+const maxZoom = 18;
+
+// URL и атрибуция для слоя тайлов OpenStreetMap
+const tileLayerUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const tileLayerAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+// Стили для регионов GeoJSON
+const defaultRegionStyle = {
+    fillColor: '#3388ff', // Цвет заливки по умолчанию
+    weight: 1,           // Толщина линии границы
+    opacity: 1,          // Прозрачность линии границы
+    color: 'white',      // Цвет линии границы
+    fillOpacity: 0.5     // Прозрачность заливки
+};
+
+const highlightRegionStyle = {
+    fillColor: '#ff7800', // Цвет заливки при наведении/выборе
+    weight: 2,
+    color: '#ff7800',
+    fillOpacity: 0.7
+};
+
+// Стиль для выделенного региона (после клика)
+const selectedRegionStyle = {
+    weight: 3,          // Толще граница
+    color: '#ff0000',     // Красный цвет границы
+    fillOpacity: 0.7    // Чуть менее прозрачный
+};
+
+// Конфигурация может содержать и другие параметры в будущем
+// Например, URL для загрузки данных, ключи API и т.д.

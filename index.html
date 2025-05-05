@@ -378,6 +378,77 @@
             gap: 15px;
             margin: 20px 0;
         }
+
+        /* Стили для начального экрана */
+        .search-container {
+            padding: 20px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .search-container h2 {
+            margin-bottom: 15px;
+            color: var(--dark-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            margin-bottom: 15px;
+            transition: all 0.2s ease;
+        }
+
+        #searchInput:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+            outline: none;
+        }
+
+        .city-list {
+            margin-top: 20px;
+        }
+
+        .city-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .city-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .city-card h3 {
+            margin: 0;
+            color: var(--dark-color);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .city-card h3:before {
+            content: "📍";
+            margin-right: 8px;
+        }
+
+        .city-card p {
+            margin: 5px 0 0 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
         
         @media (min-width: 768px) {
             #map { 
@@ -419,7 +490,32 @@
 </head>
 <body>
     <div id="map"></div>
-    <div id="hostelPanel"></div>
+    <div id="hostelPanel">
+        <!-- Начальный экран -->
+        <div class="search-container">
+            <h2>🏠 Поиск общежитий</h2>
+            <input type="text" id="searchInput" placeholder="Введите название общежития или адрес...">
+            <p>Или выберите город из списка:</p>
+        </div>
+
+        <div class="city-list">
+            <div class="city-card" onclick="showHostels('Астана')">
+                <h3>Астана</h3>
+                <p>Доступно общежитий: 3</p>
+            </div>
+
+            <div class="city-card" onclick="showHostels('Алматы')">
+                <h3>Алматы</h3>
+                <p>Доступно общежитий: 2</p>
+            </div>
+
+            <div class="city-card" onclick="showHostels('Шымкент')">
+                <h3>Шымкент</h3>
+                <p>Доступно общежитий: 2</p>
+            </div>
+        </div>
+    </div>
+    
     <button id="backButton" onclick="goBack()">← Назад к карте</button>
     <button id="adminPanelBtn" onclick="toggleAdminPanel()">Админ-панель</button>
     
@@ -474,15 +570,21 @@
     </div>
 
     <script>
+        // Инициализация карты
         var map = L.map('map').setView([48, 67], 5); 
-        let currentLayer;
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Состояние приложения
+        let currentLayer = null;
         let isZoomed = false;
         let currentCity = null;
         let previousZoom = 5;
         let previousCenter = [48, 67];
         let previousLayerStyle = null;
 
-        // Обновленные данные об общежитиях (без Караганды, добавлен Шымкент)
+        // Данные об общежитиях
         const hostelsData = {
             "Астана": [
                 {
@@ -562,71 +664,58 @@
             ]
         };
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
+        // Функция загрузки GeoJSON
         function loadGeoJSON(url, clickHandler) {
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (currentLayer) {
-                        map.removeLayer(currentLayer);
+            // Fallback данные, если файл не загрузится
+            const fallbackData = {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: { name: "Астана" },
+                        geometry: { type: "Point", coordinates: [71.4304, 51.1282] }
+                    },
+                    {
+                        type: "Feature",
+                        properties: { name: "Алматы" },
+                        geometry: { type: "Point", coordinates: [76.9120, 43.2220] }
+                    },
+                    {
+                        type: "Feature",
+                        properties: { name: "Шымкент" },
+                        geometry: { type: "Point", coordinates: [69.5908, 42.3155] }
                     }
-                    currentLayer = L.geoJSON(data, {
-                        style: { 
-                            color: "#4CAF50", 
-                            weight: 2,
-                            fillOpacity: 0.2,
-                            fillColor: "#4CAF50"
-                        },
-                        onEachFeature: function (feature, layer) {
-                            if (!isZoomed) {
-                                layer.bindPopup(feature.properties.name, {
-                                    className: 'custom-popup'
-                                }); 
-                            }
-                            layer.on('click', function() {
-                                clickHandler(feature, layer);
-                            });
-                        }
-                    }).addTo(map);
-                })
-                .catch(error => {
-                    console.error("Ошибка загрузки GeoJSON:", error);
-                    // Используем fallback данные, если файл не загрузился
-                    const fallbackData = {
-                        type: "FeatureCollection",
-                        features: [
-                            {
-                                type: "Feature",
-                                properties: { name: "Астана" },
-                                geometry: { type: "Point", coordinates: [71.4304, 51.1282] }
-                            },
-                            {
-                                type: "Feature",
-                                properties: { name: "Алматы" },
-                                geometry: { type: "Point", coordinates: [76.9120, 43.2220] }
-                            },
-                            {
-                                type: "Feature",
-                                properties: { name: "Шымкент" },
-                                geometry: { type: "Point", coordinates: [69.5908, 42.3155] }
-                            }
-                        ]
-                    };
-                    currentLayer = L.geoJSON(fallbackData, {
-                        style: { color: "#4CAF50", weight: 2, fillOpacity: 0.2, fillColor: "#4CAF50" },
-                        onEachFeature: function (feature, layer) {
-                            layer.bindPopup(feature.properties.name);
-                            layer.on('click', function() {
-                                clickHandler(feature, layer);
-                            });
-                        }
-                    }).addTo(map);
-                });
+                ]
+            };
+
+            // Используем fallback данные напрямую
+            currentLayer = L.geoJSON(fallbackData, {
+                style: { 
+                    color: "#4CAF50", 
+                    weight: 2,
+                    fillOpacity: 0.2,
+                    fillColor: "#4CAF50"
+                },
+                pointToLayer: function(feature, latlng) {
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: "#4CAF50",
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+                },
+                onEachFeature: function (feature, layer) {
+                    layer.bindPopup(feature.properties.name);
+                    layer.on('click', function() {
+                        clickHandler(feature, layer);
+                    });
+                }
+            }).addTo(map);
         }
 
+        // Функции для работы с блюром
         function applyBlur() {
             if (currentLayer) {
                 previousLayerStyle = currentLayer.options.style;
@@ -640,14 +729,17 @@
             }
         }
 
+        // Показать список общежитий для города
         function showHostels(city) {
-            if (!city) {
-                console.error('Не передан город для отображения');
-                city = 'Неизвестный город';
+            if (!city || !hostelsData[city]) {
+                console.error('Город не найден в данных:', city);
+                return;
             }
             
             currentCity = city;
             const panel = document.getElementById('hostelPanel');
+            
+            // Заголовок
             panel.innerHTML = `
                 <h2 style="margin-bottom: 20px; color: var(--dark-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px;">
                     🏘️ Общежития в ${city}
@@ -655,104 +747,90 @@
                 <p style="margin-bottom: 15px; color: #666;">Выберите общежитие для просмотра подробной информации</p>
             `;
             
-            // Проверяем, есть ли данные для этого города
-            if (hostelsData[city] && hostelsData[city].length > 0) {
-                hostelsData[city].forEach(hostel => {
-                    const occupancy = Math.round((1 - hostel.freeSpots / hostel.totalSpots) * 100);
-                    let occupancyClass = 'low-occupancy';
-                    if (occupancy > 90) {
-                        occupancyClass = 'high-occupancy';
-                    } else if (occupancy > 70) {
-                        occupancyClass = 'medium-occupancy';
-                    }
-                    
-                    panel.innerHTML += `
-                        <div class="hostel-card">
-                            <h3>${hostel.name} <span class="occupancy-badge ${occupancyClass}">${occupancy}%</span></h3>
-                            <p>📍 <strong>Адрес:</strong> <a href="https://2gis.kz/search/${encodeURIComponent(hostel.address)}" target="_blank" style="color: var(--secondary-color); text-decoration: none;">${hostel.address}</a></p>
-                            <p>💰 <strong>Цена:</strong> ${hostel.price.toLocaleString()} ₸/месяц</p>
-                            <p>📞 <strong>Телефон:</strong> <a href="tel:${hostel.phone.replace(/-/g, '')}" style="color: var(--secondary-color); text-decoration: none;">${hostel.phone}</a></p>
-                            <p>🛏️ <strong>${hostel.freeSpots}</strong> из <strong>${hostel.totalSpots}</strong> мест свободно</p>
-                            <button class="details-btn" onclick="showHostelDetails('${city}', '${hostel.name.replace(/'/g, "\\'")}')">
-                                Подробнее и бронирование
-                            </button>
-                        </div>
-                    `;
-                });
-            } else {
+            // Добавляем карточки общежитий
+            hostelsData[city].forEach(hostel => {
+                const occupancy = Math.round((1 - hostel.freeSpots / hostel.totalSpots) * 100);
+                let occupancyClass = 'low-occupancy';
+                if (occupancy > 90) occupancyClass = 'high-occupancy';
+                else if (occupancy > 70) occupancyClass = 'medium-occupancy';
+                
                 panel.innerHTML += `
                     <div class="hostel-card">
-                        <h3>Информация</h3>
-                        <p>К сожалению, в городе ${city} пока нет доступных общежитий в нашей базе.</p>
-                        <p>Попробуйте проверить позже или обратитесь в администрацию вашего учебного заведения.</p>
+                        <h3>${hostel.name} <span class="occupancy-badge ${occupancyClass}">${occupancy}%</span></h3>
+                        <p>📍 <strong>Адрес:</strong> <a href="https://2gis.kz/search/${encodeURIComponent(hostel.address)}" target="_blank" style="color: var(--secondary-color); text-decoration: none;">${hostel.address}</a></p>
+                        <p>💰 <strong>Цена:</strong> ${hostel.price.toLocaleString()} ₸/месяц</p>
+                        <p>📞 <strong>Телефон:</strong> <a href="tel:${hostel.phone.replace(/-/g, '')}" style="color: var(--secondary-color); text-decoration: none;">${hostel.phone}</a></p>
+                        <p>🛏️ <strong>${hostel.freeSpots}</strong> из <strong>${hostel.totalSpots}</strong> мест свободно</p>
+                        <button class="details-btn" onclick="showHostelDetails('${city}', '${hostel.name.replace(/'/g, "\\'")}')">
+                            Подробнее и бронирование
+                        </button>
                     </div>
                 `;
-            }
+            });
             
             document.getElementById('backButton').style.display = 'block';
         }
 
+        // Показать детали общежития
         function showHostelDetails(city, hostelName) {
             const hostel = hostelsData[city].find(h => h.name === hostelName);
-            if (hostel) {
-                const occupancy = Math.round((1 - hostel.freeSpots / hostel.totalSpots) * 100);
-                let occupancyClass = 'low-occupancy';
-                if (occupancy > 90) {
-                    occupancyClass = 'high-occupancy';
-                } else if (occupancy > 70) {
-                    occupancyClass = 'medium-occupancy';
-                }
+            if (!hostel) return;
+
+            const occupancy = Math.round((1 - hostel.freeSpots / hostel.totalSpots) * 100);
+            let occupancyClass = 'low-occupancy';
+            if (occupancy > 90) occupancyClass = 'high-occupancy';
+            else if (occupancy > 70) occupancyClass = 'medium-occupancy';
+            
+            const panel = document.getElementById('hostelPanel');
+            panel.innerHTML = `
+                <button class="details-btn" style="margin-bottom: 20px;" onclick="showHostels('${city}')">
+                    ← Назад к списку
+                </button>
                 
-                const panel = document.getElementById('hostelPanel');
-                panel.innerHTML = `
-                    <button class="details-btn" style="margin-bottom: 20px;" onclick="showHostels('${city}')">
-                        ← Назад к списку
-                    </button>
-                    
-                    <h2 style="margin-bottom: 15px; color: var(--dark-color);">${hostel.name}</h2>
-                    <img src="${hostel.photo}" alt="Фото общежития ${hostel.name}">
-                    
-                    <div class="info-grid">
-                        <div class="hostel-card">
-                            <h3>📌 Информация</h3>
-                            <p><strong>Адрес:</strong> <a href="https://2gis.kz/search/${encodeURIComponent(hostel.address)}" target="_blank" style="color: var(--secondary-color); text-decoration: none;">${hostel.address}</a></p>
-                            <p><strong>Телефон:</strong> <a href="tel:${hostel.phone.replace(/-/g, '')}" style="color: var(--secondary-color); text-decoration: none;">${hostel.phone}</a></p>
-                            <p><strong>Описание:</strong> ${hostel.description}</p>
-                        </div>
-                        
-                        <div class="hostel-card">
-                            <h3>📊 Доступность</h3>
-                            <p><strong>Всего мест:</strong> ${hostel.totalSpots}</p>
-                            <p><strong>Свободно:</strong> ${hostel.freeSpots}</p>
-                            <p><strong>Заполненность:</strong> <span class="occupancy-badge ${occupancyClass}">${occupancy}%</span></p>
-                        </div>
+                <h2 style="margin-bottom: 15px; color: var(--dark-color);">${hostel.name}</h2>
+                <img src="${hostel.photo}" alt="Фото общежития ${hostel.name}">
+                
+                <div class="info-grid">
+                    <div class="hostel-card">
+                        <h3>📌 Информация</h3>
+                        <p><strong>Адрес:</strong> <a href="https://2gis.kz/search/${encodeURIComponent(hostel.address)}" target="_blank" style="color: var(--secondary-color); text-decoration: none;">${hostel.address}</a></p>
+                        <p><strong>Телефон:</strong> <a href="tel:${hostel.phone.replace(/-/g, '')}" style="color: var(--secondary-color); text-decoration: none;">${hostel.phone}</a></p>
+                        <p><strong>Описание:</strong> ${hostel.description}</p>
                     </div>
                     
                     <div class="hostel-card">
-                        <h3>💵 Стоимость</h3>
-                        <p style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">
-                            ${hostel.price.toLocaleString()} ₸/месяц
-                        </p>
-                        <p style="color: #666; margin-top: 5px;">Цена указана за одно место в комнате</p>
+                        <h3>📊 Доступность</h3>
+                        <p><strong>Всего мест:</strong> ${hostel.totalSpots}</p>
+                        <p><strong>Свободно:</strong> ${hostel.freeSpots}</p>
+                        <p><strong>Заполненность:</strong> <span class="occupancy-badge ${occupancyClass}">${occupancy}%</span></p>
                     </div>
-                    
-                    <div class="booking-form">
-                        <h3>📝 Оставить заявку на бронирование</h3>
-                        <form onsubmit="submitApplication(event, '${city}', '${hostel.name.replace(/'/g, "\\'")}')">
-                            <input type="text" placeholder="Ваше полное имя" required><br>
-                            <input type="tel" placeholder="Телефон (например: 87071234567)" required><br>
-                            <input type="email" placeholder="Email" required><br>
-                            <input type="text" placeholder="Учебное заведение"><br>
-                            <textarea placeholder="Дополнительная информация (особые требования, сроки проживания и т.д.)" rows="3" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: var(--border-radius);"></textarea>
-                            <button type="submit" class="details-btn" style="width: 100%;">
-                                📤 Отправить заявку
-                            </button>
-                        </form>
-                    </div>
-                `;
-            }
+                </div>
+                
+                <div class="hostel-card">
+                    <h3>💵 Стоимость</h3>
+                    <p style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">
+                        ${hostel.price.toLocaleString()} ₸/месяц
+                    </p>
+                    <p style="color: #666; margin-top: 5px;">Цена указана за одно место в комнате</p>
+                </div>
+                
+                <div class="booking-form">
+                    <h3>📝 Оставить заявку на бронирование</h3>
+                    <form onsubmit="submitApplication(event, '${city}', '${hostel.name.replace(/'/g, "\\'")}')">
+                        <input type="text" placeholder="Ваше полное имя" required><br>
+                        <input type="tel" placeholder="Телефон (например: 87071234567)" required><br>
+                        <input type="email" placeholder="Email" required><br>
+                        <input type="text" placeholder="Учебное заведение"><br>
+                        <textarea placeholder="Дополнительная информация (особые требования, сроки проживания и т.д.)" rows="3"></textarea>
+                        <button type="submit" class="details-btn" style="width: 100%;">
+                            📤 Отправить заявку
+                        </button>
+                    </form>
+                </div>
+            `;
         }
 
+        // Отправить заявку
         function submitApplication(event, city, hostelName) {
             event.preventDefault();
             const form = event.target;
@@ -773,13 +851,37 @@
             form.reset();
         }
 
+        // Вернуться назад
         function goBack() {
             if (currentCity) {
                 // Возвращаемся к исходному виду карты
                 map.setView(previousCenter, previousZoom, { animate: true });
                 
-                // Очищаем панель с общежитиями
-                document.getElementById('hostelPanel').innerHTML = '';
+                // Восстанавливаем начальный экран
+                document.getElementById('hostelPanel').innerHTML = `
+                    <div class="search-container">
+                        <h2>🏠 Поиск общежитий</h2>
+                        <input type="text" id="searchInput" placeholder="Введите название общежития или адрес...">
+                        <p>Или выберите город из списка:</p>
+                    </div>
+
+                    <div class="city-list">
+                        <div class="city-card" onclick="showHostels('Астана')">
+                            <h3>Астана</h3>
+                            <p>Доступно общежитий: 3</p>
+                        </div>
+
+                        <div class="city-card" onclick="showHostels('Алматы')">
+                            <h3>Алматы</h3>
+                            <p>Доступно общежитий: 2</p>
+                        </div>
+
+                        <div class="city-card" onclick="showHostels('Шымкент')">
+                            <h3>Шымкент</h3>
+                            <p>Доступно общежитий: 2</p>
+                        </div>
+                    </div>
+                `;
                 
                 // Скрываем кнопку "Назад"
                 document.getElementById('backButton').style.display = 'none';
@@ -790,17 +892,42 @@
                 
                 // Убираем блюр и восстанавливаем стили
                 removeBlur();
-                
-                // Перезагружаем GeoJSON для восстановления popup'ов
-                loadGeoJSON("data/kz_1.", initialClickHandler);
             }
         }
 
+        // Переключение админ-панели
         function toggleAdminPanel() {
             const panel = document.getElementById('adminPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         }
 
+        // Обработчик клика по карте
+        function initialClickHandler(feature, layer) {
+            if (isZoomed) return;
+            
+            previousCenter = map.getCenter();
+            previousZoom = map.getZoom();
+            
+            const cityName = feature.properties?.name || 'Неизвестный город';
+            
+            try {
+                const bounds = layer.getBounds();
+                map.fitBounds(bounds, { animate: true, duration: 1.5 });
+                applyBlur();
+
+                setTimeout(() => {
+                    showHostels(cityName);
+                    removeBlur();
+                }, 1500);
+
+                isZoomed = true;
+            } catch (error) {
+                console.error('Ошибка при обработке клика:', error);
+                showHostels(cityName);
+            }
+        }
+
+        // Обработчик формы админ-панели
         document.getElementById('hostelForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -821,43 +948,14 @@
             toggleAdminPanel();
         });
 
-        function initialClickHandler(feature, layer) {
-            if (isZoomed) return;
-
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            loadGeoJSON("data/kz_1.", initialClickHandler);
             
-            previousCenter = map.getCenter();
-            previousZoom = map.getZoom();
-            
-            
-            const cityName = feature.properties?.name || feature.properties?.NAME || 
-                           feature.properties?.NAME_1 || 'Неизвестный город';
-            
-            console.log('Выбран город:', cityName);
-            
-            try {
-                const bounds = layer.getBounds();
-                map.fitBounds(bounds, { animate: true, duration: 1.5 });
-
-                applyBlur();
-
-                setTimeout(() => {
-                    showHostels(cityName);
-                    removeBlur();
-                }, 1500);
-
-                isZoomed = true;
-            } catch (error) {
-                console.error('Ошибка при обработке клика:', error);
-                showHostels(cityName);
-            }
-        }
-
-        
-        loadGeoJSON("data/kz_1.", initialClickHandler);
-        
-        
-        window.addEventListener('resize', function() {
-            map.invalidateSize();
+            // Обработка изменения размера окна
+            window.addEventListener('resize', function() {
+                map.invalidateSize();
+            });
         });
     </script>
 </body>
